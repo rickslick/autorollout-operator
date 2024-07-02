@@ -1,0 +1,31 @@
+# permissions for end users to edit flippers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: flipper-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: autorollout-operator
+    app.kubernetes.io/part-of: autorollout-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: flipper-editor-role
+rules:
+- apiGroups:
+  - crd.ricktech.io
+  resources:
+  - flippers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - crd.ricktech.io
+  resources:
+  - flippers/status
+  verbs:
+  - get

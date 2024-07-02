@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - crd.ricktech.io
+  resources:
+  - flippers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - crd.ricktech.io
+  resources:
+  - flippers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - crd.ricktech.io
+  resources:
+  - flippers/status
+  verbs:
+  - get
+  - patch
+  - update

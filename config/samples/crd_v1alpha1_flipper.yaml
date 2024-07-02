@@ -1,0 +1,15 @@
+apiVersion: crd.ricktech.io/v1alpha1
+kind: Flipper
+metadata:
+  labels:
+    app.kubernetes.io/name: flipper
+    app.kubernetes.io/instance: flipper-sample
+    app.kubernetes.io/part-of: autorollout-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: autorollout-operator
+  name: flipper-redis
+spec:
+  match:
+    labels:
+      app.kubernetes.io/instance: redis-operator
+      app.kubernetes.io/name: redis-operator
