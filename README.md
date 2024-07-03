@@ -4,7 +4,7 @@ autorollout-operator is k8s operator which can perform rollout restart of deploy
 ## Description
 autorollout-operator is k8s operator created using operator-sdk https://sdk.operatorframework.io/ that performs rolling restart of deployment by patching filtered deployments with annotation ```kubectl.kubernetes.io/restartedAt``` at regular intervals of time. The operator also tries to ensure in case of failure, it is reconciled till success occurs. The operator watches on custom resource : ```apiVersion: crd.ricktech.io/v1alpha1``` and ```kind: Flipper``` which is used to specify both interval and label selectors to filter the deployments 
 
-![alt text](https://github.com/rickslick/autorollout-operator/blob/main/basicworkflow.jpeg?raw=true)
+![alt text](https://raw.githubusercontent.com/rickslick/autorollout-operator/main/docs/basicworkflow.jpeg)
 Eg :
 
 ```
