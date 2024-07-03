@@ -23,7 +23,14 @@ spec:
     labels:
       mesh: enabled
 ```
+### Features
 
+* validation webhook to verify presence of atleast one label and interval in proper format
+* mutating webhook to set the default interval to 10m if not provided
+* auto retry for failed rollout restarts(failed patches)
+* automatic rollout restart at every interval
+* Restarts only Ready deployments
+  
 ## Getting Started
 
 ### Prerequisites
