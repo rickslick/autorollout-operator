@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -64,10 +63,15 @@ type FlipperStatus struct {
 	Reason string `json:"reason,omitempty"`
 
 	// List of deployments that failed to get patched (namespacedName)
-	FailedRolloutDeployments []appsv1.Deployment `json:"failedRolloutDeployments,omitempty"`
+	FailedRolloutDeployments []DeploymentInfo `json:"failedRolloutDeployments,omitempty"`
 
 	// Time of the last rollout restart
 	LastScheduledRolloutTime metav1.Time `json:"lastScheduleTime,omitempty"`
+}
+
+type DeploymentInfo struct {
+	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace"`
 }
 
 //+kubebuilder:object:root=true

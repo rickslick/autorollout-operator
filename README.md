@@ -1,8 +1,28 @@
 # autorollout-operator
-// TODO(user): Add simple overview of use/purpose
+autorollout-operator is k8s operator which can perform rollout restart of deployments at regular intervals of time
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+autorollout-operator is k8s operator that performs rolling restart of deployment by patching filtered deployments with annotation ```kubectl.kubernetes.io/restartedAt``` at regular intervals of time. The operator also tries to ensure in case of failure for patching it is retried till success occurs. The operator watches on custom resource : ```apiVersion: crd.ricktech.io/v1alpha1``` and ```kind: Flipper``` which is used to specify both interval and label selectors to filter the deployments 
+Eg :
+
+```
+apiVersion: crd.ricktech.io/v1alpha1
+kind: Flipper
+metadata:
+  labels:
+    app.kubernetes.io/name: flipper
+    app.kubernetes.io/instance: flipper-sample
+    app.kubernetes.io/part-of: autorollout-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: autorollout-operator
+  name: flipper-redis
+spec:
+  interval: 12h
+  match:
+    namespace: redis
+    labels:
+      mesh: enabled
+```
 
 ## Getting Started
 
@@ -67,9 +87,7 @@ make undeploy
 ```
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 

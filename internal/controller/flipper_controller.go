@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/rickslick/autorollout-operator/api/v1alpha1"
@@ -30,6 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -106,6 +106,7 @@ func (r *FlipperReconciler) HandleRolloutReconciler(ctx context.Context, flipper
 		nowInRFC3339 = rolloutTime.Format(time.RFC3339)
 	)
 	if rolloutInterval == 0 {
+		//should not have occurred as webhook should have set default to 10m
 		rolloutInterval = consts.DEFAULT_FLIPPER_INTERVAL * time.Minute
 	}
 
@@ -119,7 +120,11 @@ func (r *FlipperReconciler) HandleRolloutReconciler(ctx context.Context, flipper
 			flipper.Status.Reason = "Error in listing the deployments"
 			r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartFailed", "Unable to list Deployments")
 			flipper.Status.Phase = crdv1alpha1.FlipFailed
-			return ctrl.Result{}, fmt.Errorf("unable to list objects for rollout restart")
+			if err := r.Status().Update(ctx, flipper); err != nil {
+				r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartFailed", "Unable to update flipperStatus")
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{}, err
 		}
 
 		if len(deploymentList.Items) == 0 {
@@ -132,12 +137,17 @@ func (r *FlipperReconciler) HandleRolloutReconciler(ctx context.Context, flipper
 			return ctrl.Result{Requeue: true}, nil
 		}
 	case crdv1alpha1.FlipFailed:
-		deploymentList.Items = flipper.Status.FailedRolloutDeployments
+		for _, failedDeploymentInfo := range flipper.Status.FailedRolloutDeployments {
+			failedDeployment := &appsv1.Deployment{}
+			if err := r.Client.Get(ctx, types.NamespacedName{Namespace: failedDeploymentInfo.Namespace, Name: failedDeploymentInfo.Name}, failedDeployment); err == nil {
+				deploymentList.Items = append(deploymentList.Items, *failedDeployment)
+			}
+		}
 	case crdv1alpha1.FlipSucceeded:
 		if flipper.Status.LastScheduledRolloutTime.Add(rolloutInterval).Compare(time.Now()) <= 0 {
 			flipper.Status.Phase = crdv1alpha1.FlipPending
-			r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartInit", "Triggering next scheduled")
-			r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartInit", "Moving state to pending")
+			r.Recorder.Eventf(flipper, v1.EventTypeNormal, "RolloutRestartInit", "Triggering next scheduled")
+			r.Recorder.Eventf(flipper, v1.EventTypeNormal, "RolloutRestartInit", "Moving state to pending")
 			if err := r.Status().Update(ctx, flipper); err != nil {
 				r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartFailed", "Unable to update flipperStatus")
 				return ctrl.Result{}, err
@@ -148,12 +158,16 @@ func (r *FlipperReconciler) HandleRolloutReconciler(ctx context.Context, flipper
 			return ctrl.Result{RequeueAfter: time.Until(flipper.Status.LastScheduledRolloutTime.Add(rolloutInterval))}, nil
 		}
 	}
-
+	//reset before adding in list
+	flipper.Status.FailedRolloutDeployments = []crdv1alpha1.DeploymentInfo{}
 	if failedObjList, err := utils.HandleRolloutRestartList(ctx, r.Client, deploymentList, r.Recorder, flipper.Namespace+"/"+flipper.Name, nowInRFC3339); err != nil {
 		r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartFailed", "Error", err.Error())
 		flipper.Status.Phase = crdv1alpha1.FlipFailed
 		if failedDeploymentList, ok := failedObjList.(*appsv1.DeploymentList); ok && failedDeploymentList != nil {
-			flipper.Status.FailedRolloutDeployments = failedDeploymentList.Items
+			for _, failedDeployment := range failedDeploymentList.Items {
+				flipper.Status.FailedRolloutDeployments = append(flipper.Status.FailedRolloutDeployments,
+					crdv1alpha1.DeploymentInfo{Name: failedDeployment.Name, Namespace: failedDeployment.Namespace})
+			}
 		}
 		errUpdate := r.Status().Update(ctx, flipper)
 		if errUpdate != nil {

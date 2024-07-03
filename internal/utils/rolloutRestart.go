@@ -15,12 +15,6 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const AnnotationFlipperRestartedAt = "flipper.ricktech.io/restartedAt"
-const RolloutRestartAnnotation = "kubectl.kubernetes.io/restartedAt"
-const RolloutManagedBy = "flipper.ricktech.io/managedBy"
-const rolloutIntervalGroupName = "flipper.ricktech.io/IntervalGroup"
-const errorUnsupportedKind = "unsupported Kind %v"
-
 // HandleRolloutRestart handles rollout restart of object by patching with annotation
 func HandleRolloutRestart(ctx context.Context, client ctrlclient.Client, obj ctrlclient.Object, managedByValue string, restartTimeInRFC3339 string) error {
 	// log := log.FromContext(ctx)
@@ -32,19 +26,19 @@ func HandleRolloutRestart(ctx context.Context, client ctrlclient.Client, obj ctr
 			t.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
 		}
 
-		t.Annotations[RolloutManagedBy] = managedByValue
+		t.Annotations[consts.RolloutManagedBy] = managedByValue
 		if restartTimeInRFC3339 == "" {
 			restartTimeInRFC3339 = time.Now().Format(time.RFC3339)
 		}
 
-		t.Annotations[AnnotationFlipperRestartedAt] = restartTimeInRFC3339
-		t.Spec.Template.ObjectMeta.Annotations[RolloutRestartAnnotation] = restartTimeInRFC3339
+		t.Annotations[consts.AnnotationFlipperRestartedAt] = restartTimeInRFC3339
+		t.Spec.Template.ObjectMeta.Annotations[consts.RolloutRestartAnnotation] = restartTimeInRFC3339
 
 		//TODO exponential backoff maybe use thirdparty lib ?
 		//TODO wait for pods to be ready before proceeding and followed by annotation completedAt:time?
 		return client.Patch(ctx, t, patch)
 	default:
-		return fmt.Errorf(errorUnsupportedKind, t)
+		return fmt.Errorf(consts.ErrorUnsupportedKind, t)
 	}
 }
 
@@ -85,7 +79,7 @@ func HandleRolloutRestartList(ctx context.Context, k8sclient ctrlclient.Client, 
 		}
 		failedObjList = failedRolloutDeploymentList
 	default:
-		errs = fmt.Errorf(errorUnsupportedKind, t)
+		errs = fmt.Errorf(consts.ErrorUnsupportedKind, t)
 	}
 	return
 

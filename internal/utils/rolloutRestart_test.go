@@ -8,6 +8,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/rickslick/autorollout-operator/internal/consts"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -161,16 +162,16 @@ func TestHandleRolloutRestartList(t *testing.T) {
 							tt.args.client.Get(ctx, types.NamespacedName{Name: obj.Name, Namespace: obj.Namespace}, gotObj)
 
 							if gotObj.Spec.Template.Annotations == nil {
-								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s", obj.Name, RolloutRestartAnnotation)
+								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s", obj.Name, consts.RolloutRestartAnnotation)
 							}
-							if _, ok := gotObj.Spec.Template.Annotations[RolloutRestartAnnotation]; !ok {
-								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s", obj.Name, RolloutRestartAnnotation)
+							if _, ok := gotObj.Spec.Template.Annotations[consts.RolloutRestartAnnotation]; !ok {
+								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s", obj.Name, consts.RolloutRestartAnnotation)
 							}
 							if gotObj.Annotations == nil {
-								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s", obj.Name, RolloutManagedBy)
+								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s", obj.Name, consts.RolloutManagedBy)
 							}
-							if gotVal, ok := gotObj.Annotations[RolloutManagedBy]; !ok || gotVal != tt.args.flipperNamespacedName {
-								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s with value %s but got %s", obj.Name, RolloutManagedBy, tt.args.flipperNamespacedName, gotVal)
+							if gotVal, ok := gotObj.Annotations[consts.RolloutManagedBy]; !ok || gotVal != tt.args.flipperNamespacedName {
+								t.Fatalf("HandleRolloutRestartList() expected %s to have annotation %s with value %s but got %s", obj.Name, consts.RolloutManagedBy, tt.args.flipperNamespacedName, gotVal)
 							}
 
 						}

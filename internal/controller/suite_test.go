@@ -41,7 +41,8 @@ import (
 
 var cfg *rest.Config
 var k8sClient client.Client
-var k8sMockClient *MockErrorClient
+var k8sMockPatchClient *MockPatchErrorClient
+var k8sMockListClient *MockListErrorClient
 var testEnv *envtest.Environment
 
 func TestControllers(t *testing.T) {
@@ -79,7 +80,10 @@ var _ = BeforeSuite(func() {
 	//+kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	k8sMockClient = &MockErrorClient{
+	k8sMockPatchClient = &MockPatchErrorClient{
+		Client: k8sClient,
+	}
+	k8sMockListClient = &MockListErrorClient{
 		Client: k8sClient,
 	}
 	Expect(err).NotTo(HaveOccurred())

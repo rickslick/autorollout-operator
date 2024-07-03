@@ -47,11 +47,20 @@ var (
 )
 
 // Customized client which return error on Patch MockClient implements all functions of Client but overrides Patch
-type MockErrorClient struct {
+type MockPatchErrorClient struct {
+	client.Client
+}
+type MockListErrorClient struct {
 	client.Client
 }
 
-func (m *MockErrorClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (m *MockListErrorClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+
+	gvk := list.GetObjectKind().GroupVersionKind()
+	return apierrors.NewForbidden(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "", nil)
+
+}
+func (m *MockPatchErrorClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	return apierrors.NewForbidden(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, obj.GetName(), nil)
 }
@@ -117,7 +126,66 @@ var _ = Describe("Flipper Controller Tests", func() {
 		})
 	})
 
-	Context("When reconciling flipper object having label matching atleast one deployment but patch returns error", func() {
+	Context("When reconciling flipper object list of deployments has error", func() {
+		const resourceName = "test-flipper-t0"
+		recorder := record.NewFakeRecorder(100)
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: "default", // TODO(user):Modify as needed
+		}
+
+		flipper := &crdv1alpha1.Flipper{}
+
+		BeforeEach(func() {
+			By("creating the custom resource for the Kind Flipper")
+			err := k8sClient.Get(ctx, typeNamespacedName, flipper)
+			if err != nil && errors.IsNotFound(err) {
+				flipper := &crdv1alpha1.Flipper{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      resourceName,
+						Namespace: "default",
+					},
+					Spec: crdv1alpha1.FlipperSpec{Match: crdv1alpha1.MatchFilter{Labels: map[string]string{"app": "myapp"}}},
+				}
+				Expect(k8sClient.Create(ctx, flipper)).To(Succeed())
+			}
+			//adding existing deployment matching the label
+			Expect(k8sClient.Create(ctx, generateDeployment())).To(Succeed())
+		})
+
+		AfterEach(func() {
+			// Cleanup logic
+			resource := &crdv1alpha1.Flipper{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Cleanup the specific resource instance Flipper")
+			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, generateDeployment())).To(Succeed())
+		})
+		It("should successfully reconcile and add proper annotation to deployment", func() {
+			By("Reconciling the created resource")
+			controllerReconciler := &FlipperReconciler{
+				Client:   k8sMockListClient,
+				Scheme:   k8sMockListClient.Scheme(),
+				Recorder: recorder,
+			}
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).To(HaveOccurred())
+			resource := &crdv1alpha1.Flipper{}
+			err = k8sMockPatchClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resource.Status.FailedRolloutDeployments).Should(BeNil())
+			Expect(resource.Status.Phase).Should(BeEquivalentTo(crdv1alpha1.FlipFailed))
+		})
+	})
+
+	Context("When reconciling flipper object having label matching atleast one deployment but patch returns error followed by success", func() {
 		const resourceName = "test-flipper"
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
@@ -131,7 +199,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind Flipper")
-			err := k8sMockClient.Get(ctx, typeNamespacedName, flipper)
+			err := k8sMockPatchClient.Get(ctx, typeNamespacedName, flipper)
 			if err != nil && errors.IsNotFound(err) {
 				flipper := &crdv1alpha1.Flipper{
 					ObjectMeta: metav1.ObjectMeta{
@@ -140,27 +208,27 @@ var _ = Describe("Flipper Controller Tests", func() {
 					},
 					Spec: crdv1alpha1.FlipperSpec{Match: crdv1alpha1.MatchFilter{Labels: map[string]string{"app": "myapp"}}},
 				}
-				Expect(k8sMockClient.Create(ctx, flipper)).To(Succeed())
+				Expect(k8sMockPatchClient.Create(ctx, flipper)).To(Succeed())
 			}
 			//adding existing deployment matching the label
-			Expect(k8sMockClient.Create(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sMockPatchClient.Create(ctx, generateDeployment())).To(Succeed())
 		})
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &crdv1alpha1.Flipper{}
-			err := k8sMockClient.Get(ctx, typeNamespacedName, resource)
+			err := k8sMockPatchClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Cleanup the specific resource instance Flipper")
-			Expect(k8sMockClient.Delete(ctx, resource)).To(Succeed())
-			Expect(k8sMockClient.Delete(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sMockPatchClient.Delete(ctx, resource)).To(Succeed())
+			Expect(k8sMockPatchClient.Delete(ctx, generateDeployment())).To(Succeed())
 		})
 		It("should successfully reconcile and add proper annotation to deployment", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &FlipperReconciler{
-				Client:   k8sMockClient,
-				Scheme:   k8sMockClient.Scheme(),
+				Client:   k8sMockPatchClient,
+				Scheme:   k8sMockPatchClient.Scheme(),
 				Recorder: recorder,
 			}
 
@@ -170,10 +238,32 @@ var _ = Describe("Flipper Controller Tests", func() {
 			Expect(err).To(HaveOccurred())
 
 			resource := &crdv1alpha1.Flipper{}
-			err = k8sMockClient.Get(ctx, typeNamespacedName, resource)
+			err = k8sMockPatchClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resource.Status.FailedRolloutDeployments).ShouldNot(BeNil())
 			Expect(resource.Status.Phase).Should(BeEquivalentTo(crdv1alpha1.FlipFailed))
+
+			/////////////////////////////////////////
+			//trying again simulation by controller//
+			////////////////////////////////////////
+			controllerReconciler = &FlipperReconciler{
+				Client:   k8sClient,
+				Scheme:   k8sClient.Scheme(),
+				Recorder: recorder,
+			}
+
+			_, err = controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+
+			Expect(err).NotTo(HaveOccurred())
+			resource = &crdv1alpha1.Flipper{}
+			err = k8sClient.Get(ctx, typeNamespacedName, resource)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(resource.Status.Phase).Should(BeEquivalentTo(crdv1alpha1.FlipSucceeded))
+			Expect(resource.Status.LastScheduledRolloutTime.String()).ShouldNot(BeEmpty())
+			Expect(resource.Status.FailedRolloutDeployments).Should(BeNil())
+
 		})
 	})
 
@@ -406,7 +496,6 @@ var _ = Describe("Flipper Controller Tests", func() {
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 
 			err := k8sClient.Get(ctx, typeNamespacedName, flipper)
 			Expect(err).NotTo(HaveOccurred())
