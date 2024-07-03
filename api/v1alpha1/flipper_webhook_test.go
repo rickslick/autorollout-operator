@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Flipper Webhook", func() {
@@ -25,7 +26,9 @@ var _ = Describe("Flipper Webhook", func() {
 	Context("When creating Flipper under Defaulting Webhook", func() {
 		It("Should fill in the default value if a required field is empty", func() {
 
-			// TODO(user): Add your logic here
+			flipper := &Flipper{}
+			flipper.Default()
+			Expect(flipper.Spec.Interval).To(Equal("10m0s"))
 
 		})
 	})
@@ -33,13 +36,18 @@ var _ = Describe("Flipper Webhook", func() {
 	Context("When creating Flipper under Validating Webhook", func() {
 		It("Should deny if a required field is empty", func() {
 
-			// TODO(user): Add your logic here
+			flipper := &Flipper{}
+			_, err := flipper.ValidateCreate()
+			Expect(err).NotTo(BeNil())
+			_, err = flipper.ValidateUpdate(flipper)
+			Expect(err).NotTo(BeNil())
 
 		})
 
 		It("Should admit if all required fields are provided", func() {
-
-			// TODO(user): Add your logic here
+			flipper := &Flipper{Spec: FlipperSpec{Interval: "15m", Match: MatchFilter{Labels: map[string]string{"a": "b"}}}}
+			err := flipper.validateFlipper()
+			Expect(err).To(BeNil())
 
 		})
 	})
