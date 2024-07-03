@@ -51,7 +51,7 @@ func (r *Flipper) Default() {
 	}
 }
 
-//+kubebuilder:webhook:path=/validate-crd-ricktech-io-v1alpha1-flipper,mutating=true,failurePolicy=fail,sideEffects=None,groups=crd.ricktech.io,resources=flippers,verbs=create;update,versions=v1alpha1,name=vflipper.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-crd-ricktech-io-v1alpha1-flipper,mutating=false,failurePolicy=fail,sideEffects=None,groups=crd.ricktech.io,resources=flippers,verbs=create;update,versions=v1alpha1,name=vflipper.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Flipper{}
 
@@ -70,16 +70,14 @@ func (r *Flipper) ValidateUpdate(old runtime.Object) (admission.Warnings, error)
 	if err := r.validateFlipper(); err != nil {
 		return admission.Warnings{err.Error()}, err
 	}
-
 	return nil, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Flipper) ValidateDelete() (admission.Warnings, error) {
-
+	flipperlog.Info("validate delete", "name", r.Name)
 	return nil, nil
 }
-
 func (r *Flipper) validateInterval() error {
 	flipperlog.Info("ValidateInterval", "name", r.Name)
 	var err error

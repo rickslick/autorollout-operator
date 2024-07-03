@@ -1,0 +1,33 @@
+#invalid sample
+apiVersion: crd.ricktech.io/v1alpha1
+kind: Flipper
+metadata:
+  labels:
+    app.kubernetes.io/name: flipper
+    app.kubernetes.io/instance: flipper-sample
+    app.kubernetes.io/part-of: autorollout-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: autorollout-operator
+  name: flipper-invalid
+spec:
+  interval: abcd
+  match:
+    labels:
+      service: gsm
+
+--- 
+#sample without interval
+apiVersion: crd.ricktech.io/v1alpha1
+kind: Flipper
+metadata:
+  labels:
+    app.kubernetes.io/name: flipper
+    app.kubernetes.io/instance: flipper-sample
+    app.kubernetes.io/part-of: autorollout-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: autorollout-operator
+  name: flipper-interval-absent
+spec:
+  match:
+    labels:
+      service: gsm
