@@ -117,6 +117,15 @@ make uninstall
 make undeploy
 ```
 
+
+### Unit test
+
+```
+ok      github.com/rickslick/autorollout-operator/api/v1alpha1  4.373s  coverage: 29.2% of statements
+ok      github.com/rickslick/autorollout-operator/internal/controller   6.371s  coverage: 82.9% of statements
+ok      github.com/rickslick/autorollout-operator/internal/utils        1.168s  coverage: 96.6% of statements
+```
+
 ## Contributing
 
 
