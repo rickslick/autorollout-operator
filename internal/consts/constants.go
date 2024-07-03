@@ -1,5 +1,7 @@
 package consts
 
+import "time"
+
 const (
 	ReasonRolloutRestartFailed      = "RolloutRestartFailed"
 	ReasonRolloutRestartTriggered   = "RolloutRestartTriggered"
@@ -8,7 +10,7 @@ const (
 	ReasonAnnotationFailed          = "AnnotationAdditionFailed"
 )
 const (
-	DEFAULT_FLIPPER_INTERVAL = 10
+	DEFAULT_FLIPPER_INTERVAL = time.Duration(10 * time.Minute)
 )
 
 const (

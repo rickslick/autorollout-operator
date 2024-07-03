@@ -108,7 +108,7 @@ func (r *FlipperReconciler) HandleRolloutReconciler(ctx context.Context, flipper
 	)
 	if rolloutInterval == 0 {
 		//should not have occurred as webhook should have set default to 10m
-		rolloutInterval = consts.DEFAULT_FLIPPER_INTERVAL * time.Minute
+		rolloutInterval = consts.DEFAULT_FLIPPER_INTERVAL
 	}
 
 	log.Info("Checking Phase of Flipper CR ", "Phase", flipper.Status.Phase)
