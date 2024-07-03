@@ -29,7 +29,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # ricktech.io/autorollout-operator-bundle:$VERSION and ricktech.io/autorollout-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= ricktech.io/autorollout-operator
+IMAGE_TAG_BASE ?= docker.io/rickslick/autorollout-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -51,7 +51,7 @@ endif
 OPERATOR_SDK_VERSION ?= v1.35.0
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= docker.io/rickslick/autorollout-operator:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.28.3
 

@@ -51,23 +51,12 @@ type FlipperReconciler struct {
 //+kubebuilder:rbac:groups=crd.ricktech.io,resources=flippers/finalizers,verbs=update
 //+kubebuilder:rbac:groups=*,resources=deployments,verbs=get;list;watch;create;update;patch
 //+kubebuilder:rbac:groups=*,resources=pods,verbs=get;list;watch;create;update;patch
+//+kubebuilder:rbac:groups=*,resources=events,verbs=get;list;watch;create;update;patch
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Flipper object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
+
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.16.3/pkg/reconcile
-//for each flipper CR
-//step 1 : verify if the CR is already in processing
-//step 2: If not processing get the list of deployments that match the criteria and trigger rollout retart
-//Step 2.1 : Add the deployment information in the status of the CR  and mark as in processing with timestamp
-//Step 2.2: Add infromation in the reconciler to invoke the same reconciler after 10 seconds
-//Step 3: If it already in processing ,iterate through the list of deployments in the status and verify if rollout restart is done
-//Step 4: If all of the deployments have done mark status of CR as done and exit without requeue
-//Step 5: If atleast of the deployments havent done , mark status as in progress, and add backoff algo to increase interval of checks
 
 // for each flipperScheduler CR
 // step 1: verify last run
@@ -98,8 +87,11 @@ func (r *FlipperReconciler) HandleRolloutReconciler(ctx context.Context, flipper
 		rolloutNameSpace      = flipper.Spec.Match.Namespace
 		rolloutInterval, _    = time.ParseDuration(flipper.Spec.Interval)
 		deploymentList        = &appsv1.DeploymentList{}
-		labelSelector         = labels.SelectorFromSet(rolloutSelectorLabels)
-		listOptions           = &client.ListOptions{
+		readyDeploymentList   = &appsv1.DeploymentList{
+			Items: []appsv1.Deployment{},
+		}
+		labelSelector = labels.SelectorFromSet(rolloutSelectorLabels)
+		listOptions   = &client.ListOptions{
 			Namespace:     rolloutNameSpace,
 			LabelSelector: labelSelector,
 		}
@@ -127,21 +119,39 @@ func (r *FlipperReconciler) HandleRolloutReconciler(ctx context.Context, flipper
 			}
 			return ctrl.Result{}, err
 		}
+		// DeploymentList to store only ready deployments
+		readyDeploymentList = &appsv1.DeploymentList{
+			Items: []appsv1.Deployment{},
+		}
+		// Filter and get only ready deployments
+		for _, deployment := range deploymentList.Items {
+			if deployment.Status.ReadyReplicas == *deployment.Spec.Replicas {
+				readyDeploymentList.Items = append(readyDeploymentList.Items, deployment)
+			} else {
+				r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartWarning", "Deployment %s/%s not ready ignoring for rollout", deployment.GetNamespace(), deployment.GetName())
+			}
+		}
 
-		if len(deploymentList.Items) == 0 {
+		if len(readyDeploymentList.Items) == 0 {
 			flipper.Status.Phase = crdv1alpha1.FlipPending
 			if err := r.Status().Update(ctx, flipper); err != nil {
 				r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartFailed", "Unable to update flipperStatus")
 				return ctrl.Result{}, err
 			}
 			r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartPending", "No objects found")
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: consts.DEFAULT_PENDING_WAIT_INTERVAL}, nil
 		}
 	case crdv1alpha1.FlipFailed:
 		for _, failedDeploymentInfo := range flipper.Status.FailedRolloutDeployments {
-			failedDeployment := &appsv1.Deployment{}
-			if err := r.Client.Get(ctx, types.NamespacedName{Namespace: failedDeploymentInfo.Namespace, Name: failedDeploymentInfo.Name}, failedDeployment); err == nil {
-				deploymentList.Items = append(deploymentList.Items, *failedDeployment)
+			failedDeployment := appsv1.Deployment{}
+			if err := r.Client.Get(ctx, types.NamespacedName{Namespace: failedDeploymentInfo.Namespace, Name: failedDeploymentInfo.Name}, &failedDeployment); err == nil {
+				// Filter and get only ready deployments
+
+				if failedDeployment.Status.ReadyReplicas == *failedDeployment.Spec.Replicas {
+					readyDeploymentList.Items = append(readyDeploymentList.Items, failedDeployment)
+				} else {
+					r.Recorder.Eventf(flipper, v1.EventTypeWarning, "RolloutRestartWarning", "Deployment %s/%s not ready ignoring for rollout", failedDeployment.GetNamespace(), failedDeployment.GetName())
+				}
 			}
 		}
 	case crdv1alpha1.FlipSucceeded:
@@ -195,51 +205,3 @@ func (r *FlipperReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&crdv1alpha1.Flipper{}).
 		Complete(r)
 }
-
-// if deploymentList != nil {
-
-// 	filterDeploymentList = deploymentList
-// for _, deployment := range deploymentList.Items {
-// 	if deployment.Annotations != nil {
-// 		//already associated with another CR
-// 		if rolloutManger, ok := deployment.Annotations[utils.RolloutManagedBy]; ok  && rolloutManger != req.NamespacedName.String(){
-// 			continue
-// 		}
-// 	}
-// 	filterDeploymentList.Items = append(filterDeploymentList.Items, deployment)
-// }
-//}
-
-// // FilterDeploymentList finds deployments that are not patched for rolloutRestart by the CR
-// func (r *FlipperReconciler) Handle(ctx context.Context, flipper *v1alpha1.Flipper) (isDesiredState bool, filterDeploymentList *appsv1.DeploymentList, err error) {
-// 	log := log.FromContext(ctx)
-// 	rolloutSelectorLabels := flipper.Spec.Match.Labels
-// 	rolloutNameSpace := flipper.Spec.Match.Namespace
-// 	deploymentList := &appsv1.DeploymentList{}
-// 	labelSelector := labels.SelectorFromSet(rolloutSelectorLabels)
-// 	listOptions := &client.ListOptions{
-// 		Namespace:     rolloutNameSpace,
-// 		LabelSelector: labelSelector,
-// 	}
-// 	if err = r.Client.List(ctx, deploymentList, listOptions); err != nil {
-// 		log.Error(err, "Error in listing the deployments")
-// 		return
-// 	}
-
-// 	filterDeploymentList = &appsv1.DeploymentList{}
-
-// 	if deploymentList != nil {
-// 		for _, deployment := range deploymentList.Items {
-// 			if deployment.Annotations != nil {
-// 				if _, ok := deployment.Annotations[utils.RolloutManagedBy]; ok {
-// 					continue
-// 				}
-// 			}
-// 			filterDeploymentList.Items = append(filterDeploymentList.Items, deployment)
-// 		}
-// 	}
-// 	if len(filterDeploymentList.Items) == 0 {
-// 		isDesiredState = true
-// 	}
-// 	return
-// }

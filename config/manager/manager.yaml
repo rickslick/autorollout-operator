@@ -70,7 +70,7 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: controller:latest
+        image: docker.io/rickslick/autorollout-operator:latest
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

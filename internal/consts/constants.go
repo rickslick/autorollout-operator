@@ -10,7 +10,8 @@ const (
 	ReasonAnnotationFailed          = "AnnotationAdditionFailed"
 )
 const (
-	DEFAULT_FLIPPER_INTERVAL = time.Duration(10 * time.Minute)
+	DEFAULT_FLIPPER_INTERVAL      = time.Duration(10 * time.Minute)
+	DEFAULT_PENDING_WAIT_INTERVAL = time.Duration(10 * time.Second)
 )
 
 const (

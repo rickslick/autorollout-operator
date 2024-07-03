@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/rickslick/autorollout-operator/api/v1alpha1"
 	crdv1alpha1 "github.com/rickslick/autorollout-operator/api/v1alpha1"
+	"github.com/rickslick/autorollout-operator/internal/consts"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -66,11 +67,11 @@ func (m *MockPatchErrorClient) Patch(ctx context.Context, obj client.Object, pat
 }
 
 var _ = Describe("Flipper Controller Tests", func() {
-	Context("When reconciling flipper object having label matching atleast one deployment", func() {
+	Context("When reconciling a flipper object having label matching atleast one deployment", func() {
 		const resourceName = "test-flipper"
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
-
+		var depFake *appsv1.Deployment
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
@@ -91,8 +92,16 @@ var _ = Describe("Flipper Controller Tests", func() {
 				}
 				Expect(k8sClient.Create(ctx, flipper)).To(Succeed())
 			}
-			//adding existing deployment matching the label
-			Expect(k8sClient.Create(ctx, generateDeployment())).To(Succeed())
+
+			depFake = generateDeployment()
+			Expect(k8sClient.Create(ctx, depFake)).To(Succeed())
+
+			depFake.Status = appsv1.DeploymentStatus{
+				Replicas:      1,
+				ReadyReplicas: 1,
+			}
+			Expect(k8sClient.Status().Update(context.Background(), depFake)).To(Succeed())
+
 		})
 
 		AfterEach(func() {
@@ -103,7 +112,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			By("Cleanup the specific resource instance Flipper")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sClient.Delete(ctx, depFake)).To(Succeed())
 		})
 		It("should successfully reconcile and add proper annotation to deployment", func() {
 			By("Reconciling the created resource")
@@ -126,11 +135,11 @@ var _ = Describe("Flipper Controller Tests", func() {
 		})
 	})
 
-	Context("When reconciling flipper object list of deployments has error", func() {
+	Context("When reconciling flipper object but the  listing in reconciler got error", func() {
 		const resourceName = "test-flipper-t0"
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
-
+		var depFake *appsv1.Deployment
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
@@ -151,8 +160,14 @@ var _ = Describe("Flipper Controller Tests", func() {
 				}
 				Expect(k8sClient.Create(ctx, flipper)).To(Succeed())
 			}
-			//adding existing deployment matching the label
-			Expect(k8sClient.Create(ctx, generateDeployment())).To(Succeed())
+			depFake = generateDeployment()
+			Expect(k8sClient.Create(ctx, depFake)).To(Succeed())
+
+			depFake.Status = appsv1.DeploymentStatus{
+				Replicas:      1,
+				ReadyReplicas: 1,
+			}
+			Expect(k8sClient.Status().Update(context.Background(), depFake)).To(Succeed())
 		})
 
 		AfterEach(func() {
@@ -163,7 +178,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			By("Cleanup the specific resource instance Flipper")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sClient.Delete(ctx, depFake)).To(Succeed())
 		})
 		It("should successfully reconcile and add proper annotation to deployment", func() {
 			By("Reconciling the created resource")
@@ -185,11 +200,11 @@ var _ = Describe("Flipper Controller Tests", func() {
 		})
 	})
 
-	Context("When reconciling flipper object having label matching atleast one deployment but patch returns error followed by success", func() {
+	Context("When reconciling flipper object having label matching atleast one deployment but patch returns error , then second round followed by success", func() {
 		const resourceName = "test-flipper"
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
-
+		var depFake *appsv1.Deployment
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
@@ -211,7 +226,14 @@ var _ = Describe("Flipper Controller Tests", func() {
 				Expect(k8sMockPatchClient.Create(ctx, flipper)).To(Succeed())
 			}
 			//adding existing deployment matching the label
-			Expect(k8sMockPatchClient.Create(ctx, generateDeployment())).To(Succeed())
+			depFake = generateDeployment()
+			Expect(k8sClient.Create(ctx, depFake)).To(Succeed())
+
+			depFake.Status = appsv1.DeploymentStatus{
+				Replicas:      1,
+				ReadyReplicas: 1,
+			}
+			Expect(k8sClient.Status().Update(context.Background(), depFake)).To(Succeed())
 		})
 
 		AfterEach(func() {
@@ -222,7 +244,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			By("Cleanup the specific resource instance Flipper")
 			Expect(k8sMockPatchClient.Delete(ctx, resource)).To(Succeed())
-			Expect(k8sMockPatchClient.Delete(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sMockPatchClient.Delete(ctx, depFake)).To(Succeed())
 		})
 		It("should successfully reconcile and add proper annotation to deployment", func() {
 			By("Reconciling the created resource")
@@ -267,11 +289,11 @@ var _ = Describe("Flipper Controller Tests", func() {
 		})
 	})
 
-	Context("When reconciling flipper object(state: empty) and there are no deployments matching the criteria", func() {
+	Context("When reconciling flipper object(state: empty) and there are no deployments matching the criteria(deployment exist but not ready)", func() {
 		const resourceName = "test-flipper"
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
-
+		var depFake *appsv1.Deployment
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
@@ -291,6 +313,8 @@ var _ = Describe("Flipper Controller Tests", func() {
 					Spec: crdv1alpha1.FlipperSpec{Match: crdv1alpha1.MatchFilter{Labels: map[string]string{"app": "myapp"}}},
 				}
 				Expect(k8sClient.Create(ctx, flipper)).To(Succeed())
+				depFake = generateDeployment()
+				Expect(k8sClient.Create(ctx, depFake)).To(Succeed())
 			}
 		})
 
@@ -302,8 +326,9 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			By("Cleanup the specific resource instance Flipper")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			Expect(k8sMockPatchClient.Delete(ctx, depFake)).To(Succeed())
 		})
-		It("should successfully reconcile and add proper annotation to deployment", func() {
+		It("should successfully reconcile and dont do anything but set status to pending", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &FlipperReconciler{
 				Client:   k8sClient,
@@ -315,7 +340,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result).Should(BeEquivalentTo(ctrl.Result{Requeue: true}), "Got different Result")
+			Expect(result).Should(BeEquivalentTo(ctrl.Result{RequeueAfter: consts.DEFAULT_PENDING_WAIT_INTERVAL}), "Got different Result")
 			resource := &crdv1alpha1.Flipper{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -324,68 +349,12 @@ var _ = Describe("Flipper Controller Tests", func() {
 		})
 	})
 
-	Context("When reconciling flipper object(state: Pending) and there are no deployments matching the criteria", func() {
-		const resourceName = "test-flipper"
-		recorder := record.NewFakeRecorder(100)
-		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-
-		flipper := &crdv1alpha1.Flipper{}
-
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind Flipper")
-			err := k8sClient.Get(ctx, typeNamespacedName, flipper)
-			if err != nil && errors.IsNotFound(err) {
-				flipper := &crdv1alpha1.Flipper{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: crdv1alpha1.FlipperSpec{Match: crdv1alpha1.MatchFilter{Labels: map[string]string{"app": "myapp"}}},
-				}
-				Expect(k8sClient.Create(ctx, flipper)).To(Succeed())
-			}
-		})
-
-		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &crdv1alpha1.Flipper{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance Flipper")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile and add proper annotation to deployment", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &FlipperReconciler{
-				Client:   k8sClient,
-				Scheme:   k8sClient.Scheme(),
-				Recorder: recorder,
-			}
-
-			result, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			Expect(result).Should(BeEquivalentTo(ctrl.Result{Requeue: true}), "Got different Result")
-			resource := &crdv1alpha1.Flipper{}
-			err = k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(resource.Status.FailedRolloutDeployments).Should(BeNil())
-			Expect(resource.Status.Phase).Should(BeEquivalentTo(crdv1alpha1.FlipPending))
-		})
-	})
 	Context("When reconciling flipper object object(state: Success) (restart of controller) without interval Lapse", func() {
 		const resourceName = "test-flipper-first"
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
 		flipper := &crdv1alpha1.Flipper{}
-
+		var depFake *appsv1.Deployment
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
@@ -411,7 +380,14 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			}
 			//adding existing deployment matching the label
-			Expect(k8sClient.Create(ctx, generateDeployment())).To(Succeed())
+			depFake = generateDeployment()
+			Expect(k8sClient.Create(ctx, depFake)).To(Succeed())
+
+			depFake.Status = appsv1.DeploymentStatus{
+				Replicas:      1,
+				ReadyReplicas: 1,
+			}
+			Expect(k8sClient.Status().Update(context.Background(), depFake)).To(Succeed())
 		})
 
 		AfterEach(func() {
@@ -422,7 +398,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			By("Cleanup the specific resource instance Flipper")
 			Expect(k8sClient.Delete(ctx, flipper)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sClient.Delete(ctx, depFake)).To(Succeed())
 		})
 		It("on second call it should rollout restart the deployment unless it crosses the interval duration(restart of controller Case)", func() {
 			By("Reconciling twice")
@@ -466,7 +442,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
 		flipper := &crdv1alpha1.Flipper{}
-
+		var depFake *appsv1.Deployment
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
@@ -492,7 +468,14 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			}
 			//adding existing deployment matching the label
-			Expect(k8sClient.Create(ctx, generateDeployment())).To(Succeed())
+			depFake = generateDeployment()
+			Expect(k8sClient.Create(ctx, depFake)).To(Succeed())
+
+			depFake.Status = appsv1.DeploymentStatus{
+				Replicas:      1,
+				ReadyReplicas: 1,
+			}
+			Expect(k8sClient.Status().Update(context.Background(), depFake)).To(Succeed())
 		})
 
 		AfterEach(func() {
@@ -502,7 +485,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			By("Cleanup the specific resource instance Flipper")
 			Expect(k8sClient.Delete(ctx, flipper)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sClient.Delete(ctx, depFake)).To(Succeed())
 		})
 		It("on second call it should rollout restart the deployment unless it crosses the interval duration(restart of controller Case)", func() {
 			By("Reconciling twice")
@@ -545,7 +528,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 		recorder := record.NewFakeRecorder(100)
 		ctx := context.Background()
 		flipper := &crdv1alpha1.Flipper{}
-
+		var depFake *appsv1.Deployment
 		typeNamespacedName := types.NamespacedName{
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
@@ -581,7 +564,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 
 			By("Cleanup the specific resource instance Flipper")
 			Expect(k8sClient.Delete(ctx, flipper)).To(Succeed())
-			Expect(k8sClient.Delete(ctx, generateDeployment())).To(Succeed())
+			Expect(k8sClient.Delete(ctx, depFake)).To(Succeed())
 		})
 		It("on second call it should rollout restart the deployment unless it crosses the interval duration(restart of controller Case)", func() {
 			By("Reconciling twice")
@@ -596,7 +579,7 @@ var _ = Describe("Flipper Controller Tests", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result).Should(BeEquivalentTo(ctrl.Result{Requeue: true}), "Got different Result")
+			Expect(result).Should(BeEquivalentTo(ctrl.Result{RequeueAfter: consts.DEFAULT_PENDING_WAIT_INTERVAL}), "Got different Result")
 			resource := &crdv1alpha1.Flipper{}
 			err = k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -604,10 +587,17 @@ var _ = Describe("Flipper Controller Tests", func() {
 			Expect(resource.Status.Phase).Should(BeEquivalentTo(crdv1alpha1.FlipPending))
 
 			//adding existing deployment matching the label
-			Expect(k8sClient.Create(ctx, generateDeployment())).To(Succeed())
+			depFake = generateDeployment()
+			Expect(k8sClient.Create(ctx, depFake)).To(Succeed())
+
+			depFake.Status = appsv1.DeploymentStatus{
+				Replicas:      1,
+				ReadyReplicas: 1,
+			}
+			Expect(k8sClient.Status().Update(context.Background(), depFake)).To(Succeed())
 
 			time.Sleep(10 * time.Millisecond)
-
+			///////////// second reconciler /////////////
 			resultSecond, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: typeNamespacedName,
 			})
@@ -625,6 +615,9 @@ var _ = Describe("Flipper Controller Tests", func() {
 	})
 })
 
+func getPtrInt32(i int32) *int32 {
+	return &i
+}
 func generateDeployment() *appsv1.Deployment {
 
 	return &appsv1.Deployment{
@@ -635,7 +628,7 @@ func generateDeployment() *appsv1.Deployment {
 			Labels:    map[string]string{"app": "myapp"},
 		},
 		Spec: appsv1.DeploymentSpec{
-
+			Replicas: getPtrInt32(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": "myapp",
@@ -677,53 +670,3 @@ func getFakeClient(initObjs ...client.Object) (client.WithWatch, *runtime.Scheme
 	}
 	return fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(initObjs...).Build(), scheme.Scheme, nil
 }
-
-// func TestFlipperReconciler_HandleRolloutReconciler(t *testing.T) {
-
-// 	fakeClient, scheme, err := getFakeClient(getFlipperObj(), generateDeployment())
-
-// 	assert.NoError(t, err)
-// 	assert.NotNil(t, fakeClient)
-// 	assert.NotNil(t, scheme)
-// 	ctx := context.TODO()
-
-// 	assert.NoError(t, err)
-// 	assert.Nil(t, err)
-// 	type fields struct {
-// 		Client   client.Client
-// 		Scheme   *runtime.Scheme
-// 		Recorder record.EventRecorder
-// 	}
-// 	type args struct {
-// 		ctx     context.Context
-// 		flipper *v1alpha1.Flipper
-// 	}
-// 	tests := []struct {
-// 		name    string
-// 		fields  fields
-// 		args    args
-// 		want    ctrl.Result
-// 		wantErr bool
-// 	}{
-// 		{name: "init", fields: fields{Client: fakeClient, Recorder: record.NewFakeRecorder(10), Scheme: scheme},
-// 			args: args{ctx: ctx, flipper: getFlipperObj()}},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			r := &FlipperReconciler{
-// 				Client:   tt.fields.Client,
-// 				Scheme:   tt.fields.Scheme,
-// 				Recorder: tt.fields.Recorder,
-// 			}
-// 			r.Client.Create(context.Background(), getFlipperObj())
-// 			got, err := r.Reconcile(tt.args.ctx, ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "default", Name: "flipperCR"}})
-// 			if (err != nil) != tt.wantErr {
-// 				t.Errorf("FlipperReconciler.HandleRolloutReconciler() error = %v, wantErr %v", err, tt.wantErr)
-// 				return
-// 			}
-// 			if !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("FlipperReconciler.HandleRolloutReconciler() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
