@@ -62,11 +62,35 @@ make install
 make deploy IMG=<some-registry>/autorollout-operator:tag
 ```
 
+Example 
+```
+make deploy
+namespace/autorollout-operator-system created
+customresourcedefinition.apiextensions.k8s.io/flippers.crd.ricktech.io created
+serviceaccount/autorollout-operator-controller-manager created
+role.rbac.authorization.k8s.io/autorollout-operator-leader-election-role created
+clusterrole.rbac.authorization.k8s.io/autorollout-operator-manager-role created
+clusterrole.rbac.authorization.k8s.io/autorollout-operator-metrics-reader created
+clusterrole.rbac.authorization.k8s.io/autorollout-operator-proxy-role created
+rolebinding.rbac.authorization.k8s.io/autorollout-operator-leader-election-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/autorollout-operator-manager-rolebinding created
+clusterrolebinding.rbac.authorization.k8s.io/autorollout-operator-proxy-rolebinding created
+service/autorollout-operator-controller-manager-metrics-service created
+service/autorollout-operator-webhook-service created
+deployment.apps/autorollout-operator-controller-manager created
+certificate.cert-manager.io/autorollout-operator-serving-cert created
+issuer.cert-manager.io/autorollout-operator-selfsigned-issuer created
+servicemonitor.monitoring.coreos.com/autorollout-operator-controller-manager-metrics-monitor created
+mutatingwebhookconfiguration.admissionregistration.k8s.io/autorollout-operator-mutating-webhook-configuration created
+validatingwebhookconfiguration.admissionregistration.k8s.io/autorollout-operator-validating-webhook-configuration created
+```
+
+
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin 
 privileges or be logged in as admin.
 
 **Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
+You can apply the samples (examples) from the config/sample (negative test also present):
 
 ```sh
 kubectl apply -k config/samples/
