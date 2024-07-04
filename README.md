@@ -44,7 +44,8 @@ spec:
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
-
+- Cert-manager installed in cluster - (webhook)
+- Prometheus-operator install in cluster (serviceMonitor metrics)
 ### To Deploy on the cluster
 **Build and push your image to the location specified by `IMG`:**
 
