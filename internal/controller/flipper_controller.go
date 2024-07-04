@@ -37,8 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-const maxWaitTime = 5 * time.Minute
-
 // FlipperReconciler reconciles a Flipper object
 type FlipperReconciler struct {
 	client.Client

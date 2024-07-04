@@ -21,16 +21,13 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/rickslick/autorollout-operator/api/v1alpha1"
 	crdv1alpha1 "github.com/rickslick/autorollout-operator/api/v1alpha1"
 	"github.com/rickslick/autorollout-operator/internal/consts"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 
 	. "github.com/onsi/gomega"
@@ -38,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -652,21 +648,4 @@ func generateDeployment() *appsv1.Deployment {
 		},
 	}
 
-}
-
-// Define Flipper
-func getFlipperObj() *v1alpha1.Flipper {
-
-	return &v1alpha1.Flipper{
-		Spec:       v1alpha1.FlipperSpec{Interval: "10m", Match: crdv1alpha1.MatchFilter{Labels: map[string]string{"app": "myapp"}}},
-		ObjectMeta: metav1.ObjectMeta{Name: "flipperCR", Namespace: "default"}}
-}
-
-func getFakeClient(initObjs ...client.Object) (client.WithWatch, *runtime.Scheme, error) {
-
-	s := scheme.Scheme
-	if err := crdv1alpha1.AddToScheme(s); err != nil {
-		return nil, nil, err
-	}
-	return fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(initObjs...).Build(), scheme.Scheme, nil
 }
